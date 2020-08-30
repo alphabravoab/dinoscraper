@@ -9,6 +9,20 @@ const fetch = require('node-fetch');
 
 // to do code clean up and faster run time.
 
+
+const scrapeImages = async(dino) => {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    await page.goto(`https://dinosaurpictures.org/${dino}-pictures`)
+
+    const images = await page.evaluate(() => {
+        const images = document.querySelectorAll(`img`)
+        const imageArray = Array.from(images).map(v => v.src)
+        return imageArray[0]
+    }) 
+    return images
+}
+
 const scrapeDino = async(dino) => {
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
@@ -16,10 +30,11 @@ const scrapeDino = async(dino) => {
     await page.goto(`https://www.nhm.ac.uk/discover/dino-directory/${dino}.html`)
    
     const data = await page.evaluate(()=> {
-       const info = document.querySelectorAll('.dinosaur--info');
-        const pronunciation = document.querySelectorAll('.dinosaur--pronunciation');
-        const meaning = document.querySelectorAll('.dinosaur--meaning');
-        const description = document.querySelectorAll('.dinosaur--description');
+        const doc = document
+        const info = doc.querySelectorAll('.dinosaur--info');
+        const pronunciation = doc.querySelectorAll('.dinosaur--pronunciation');
+        const meaning = doc.querySelectorAll('.dinosaur--meaning');
+        const description = doc.querySelectorAll('.dinosaur--description');
 
         const feed = Array.from(info).map(v => v.innerText)[0].split('\n');
         const desc = Array.from(description).map(v => v.innerText)[0].split('\n');
@@ -37,14 +52,6 @@ const scrapeDino = async(dino) => {
         return data
     })
 
-    await page.goto(`https://dinosaurpictures.org/${dino}-pictures`)
-
-    const images = await page.evaluate(dino => {
-        const images = document.querySelectorAll(`img`)
-        const imageArray = Array.from(images).map(v => v.src)
-        return imageArray[0]
-    }) 
-    data.images = images
     return data
 
 }
@@ -56,7 +63,9 @@ exports.scraper = functions.https.onRequest( async (request, response) => {
         response.status(400).send('no dino')
     }
     const data = await scrapeDino(dino)
+    const images = await scrapeImages(dino)
 
+    data.images = images
     response.send(data)
 
 });
